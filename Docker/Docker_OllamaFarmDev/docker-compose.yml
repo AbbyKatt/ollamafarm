@@ -1,0 +1,103 @@
+version: '3.8'
+
+services:
+
+  #Jupyter notebook for data science work -> visit it in your browser at http://localhost:8888/?token=4BByK477-4EVAH-D34DB33F
+  #You can also connect to it with VSCode with the same kernel for a better editing experience 
+  ollamafarm-jupyterdev:
+    container_name: ollamafarm-JupyterDev
+    image: jupyter/datascience-notebook:latest
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./ExampleWorkBooks:/home/jovyan
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2g
+    networks:
+      - devnet
+    environment:
+      JUPYTER_TOKEN: 4BByK477-4EVAH-D34DB33F
+
+
+  #This gives you a ChatGPT style WebUI -> visit it in your browser at http://localhost:8666
+  #It automatically connects to the load balancer and the Ollama services
+  ollamafarm-ollama-webui:
+    image: ollamawebui/ollama-webui
+    container_name: ollamafarm-ollama-webui
+    networks:
+      - devnet
+    ports:
+      - 8080:8080
+    environment:
+      - 'OLLAMA_BASE_URL=http://localhost:11434'
+      - 'WEBUI_SECRET_KEY='
+
+
+  #Load balancer for Ollama services -> distributes the web request across the different workers
+  ollamafarm-nginx-proxy:
+    image: jwilder/nginx-proxy
+    container_name: ollamafarm-nginx-proxy
+    ports:
+      - 11434:11434
+    volumes:
+      - ./nginx_config/nginx.conf:/etc/nginx/nginx.conf #:ro
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+    environment:
+      DEFAULT_HOST: myapp
+    networks:
+      - devnet
+
+  #-----------------------------------------------------------------------------------------
+  #Workers - Workers for Ollama services -> these are the services that actually do the work
+  #We start with a couple of GPU workers and then a couple of CPU workers for example
+  #Feel free to scale up or down as needed and depending on your hardware!
+  #-----------------------------------------------------------------------------------------
+
+  #GPU worker 1
+  ollamafarm_gpu_worker01:
+    container_name: ollamafarm_gpu_worker01
+    image: ollama/ollama:latest
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 8g
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities:
+                - gpu
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    networks:
+      - devnet
+
+  #GPU worker 2
+  ollamafarm_gpu_worker02:
+    container_name: ollamafarm_gpu_worker02
+    image: ollama/ollama:latest
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 8g
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities:
+                - gpu
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    networks:
+      - devnet
+
+networks:
+  devnet:
+    driver: bridge

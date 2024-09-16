@@ -27,15 +27,8 @@ services:
         limits:
           cpus: '4.0'
           memory: 8g
-        # reservations:
-        #   devices:
-        #     - driver: nvidia
-        #       count: 1
-        #       capabilities:
-        #         - gpu
-    # environment:
-    #   - NVIDIA_VISIBLE_DEVICES=all
-    #   - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    environment:
+      - 'OLLAMA_ORIGINS=*'
     networks:
       - devnet
 

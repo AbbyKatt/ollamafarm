@@ -11,6 +11,7 @@ services:
       - "8888:8888"
     volumes:
       - ./ExampleWorkBooks:/home/jovyan
+      - /var/run/docker.sock:/tmp/docker.sock:ro
     deploy:
       resources:
         limits:
@@ -22,19 +23,18 @@ services:
       JUPYTER_TOKEN: 4BByK477-4EVAH-D34DB33F
 
 
-  #This gives you a ChatGPT style WebUI -> visit it in your browser at http://localhost:8666
+  #This gives you a ChatGPT style WebUI -> visit it in your browser at http://localhost:8080
   #It automatically connects to the load balancer and the Ollama services
-  ollamafarm-ollama-webui:
-    image: ollamawebui/ollama-webui
-    container_name: ollamafarm-ollama-webui
-    networks:
-      - devnet
-    ports:
-      - 8080:8080
-    environment:
-      - 'OLLAMA_BASE_URL=http://localhost:11434'
-      - 'WEBUI_SECRET_KEY='
-
+  # ollamafarm-ollama-webui:
+  #   image: ollamawebui/ollama-webui
+  #   container_name: ollamafarm-ollama-webui
+  #   networks:
+  #     - devnet
+  #   ports:
+  #     - 8080:8080
+  #   environment:
+  #     - 'OLLAMA_BASE_URL=http://localhost:11434'
+  #     - 'WEBUI_SECRET_KEY='
 
   #Load balancer for Ollama services -> distributes the web request across the different workers
   ollamafarm-nginx-proxy:
@@ -72,6 +72,8 @@ services:
               capabilities:
                 - gpu
     environment:
+      - VIRTUAL_HOST=myapp
+      - VIRTUAL_PORT=11434
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     networks:
@@ -93,10 +95,45 @@ services:
               capabilities:
                 - gpu
     environment:
+      - VIRTUAL_HOST=myapp
+      - VIRTUAL_PORT=11434
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     networks:
       - devnet
+
+
+  #CPU worker 1
+  ollamafarm_cpu_worker01:
+    container_name: ollamafarm_cpu_worker01
+    image: ollama/ollama:latest
+    deploy:
+      resources:
+        limits:
+          cpus: '6.0'
+          memory: 8g
+    environment:
+      - VIRTUAL_HOST=myapp
+      - VIRTUAL_PORT=11434
+    networks:
+      - devnet
+
+
+  #CPU worker 2
+  ollamafarm_cpu_worker02:
+    container_name: ollamafarm_cpu_worker02
+    image: ollama/ollama:latest
+    deploy:
+      resources:
+        limits:
+          cpus: '6.0'
+          memory: 8g
+    environment:
+      - VIRTUAL_HOST=myapp
+      - VIRTUAL_PORT=11434
+    networks:
+      - devnet
+
 
 networks:
   devnet:
